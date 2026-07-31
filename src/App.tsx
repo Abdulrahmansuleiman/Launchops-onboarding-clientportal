@@ -102,7 +102,9 @@ function App() {
 
   return (
     <div
-      className={`welcome${view === 'dashboard' ? ' welcome-dash' : ''}`}
+      className={`welcome${view === 'dashboard' ? ' welcome-dash' : ''}${
+        view === 'onboarding' ? ' welcome-chat' : ''
+      }`}
       data-theme={view === 'dashboard' ? theme : undefined}
     >
       {view === 'welcome' && (
