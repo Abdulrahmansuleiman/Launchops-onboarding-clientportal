@@ -5,6 +5,7 @@ import {
   type OnboardingQuestion,
   type UploadedFile,
 } from '../data/onboardingQuestions'
+import { supabase } from '../lib/supabase'
 
 type Answer = string | string[] | Record<string, string> | UploadedFile[]
 
@@ -66,6 +67,8 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
   const [done, setDone] = useState(false)
   const [reference, setReference] = useState('')
   const [uploadError, setUploadError] = useState('')
+  const [submitError, setSubmitError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -81,25 +84,27 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
   const answer = answers[question.id]
   const progress = ((step + 1) / total) * 100
 
-  const goNext = () => {
+  const goNext = async () => {
     if (!isValid(question, answer)) {
       setError(true)
       return
     }
     setError(false)
     if (step === total - 1) {
-      const submissions = JSON.parse(
-        localStorage.getItem('client-onboarding-submissions') ?? '[]',
-      ) as unknown[]
-      const id = crypto.randomUUID()
-      submissions.push({
-        id,
-        submittedAt: new Date().toISOString(),
-        answers,
-      })
-      localStorage.setItem('client-onboarding-submissions', JSON.stringify(submissions))
+      setSubmitting(true)
+      setSubmitError('')
+      const { data, error: insertError } = await supabase
+        .from('clients')
+        .insert({ answers })
+        .select('id')
+        .single()
+      setSubmitting(false)
+      if (insertError || !data) {
+        setSubmitError('Could not save your onboarding. Please check your connection and try again.')
+        return
+      }
       localStorage.removeItem(DRAFT_KEY)
-      setReference(id.slice(0, 8).toUpperCase())
+      setReference(data.id.slice(0, 8).toUpperCase())
       setDone(true)
       return
     }
@@ -446,13 +451,16 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
         <motion.button
           className="btn btn-client"
           onClick={goNext}
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.97 }}
+          disabled={submitting}
+          whileHover={submitting ? undefined : { scale: 1.03 }}
+          whileTap={submitting ? undefined : { scale: 0.97 }}
         >
-          {step === total - 1 ? 'Submit' : 'Next'}
-          <span className="btn-arrow">→</span>
+          {submitting ? 'Saving…' : step === total - 1 ? 'Submit' : 'Next'}
+          {!submitting && <span className="btn-arrow">→</span>}
         </motion.button>
       </div>
+
+      {submitError && <p className="quiz-error">{submitError}</p>}
     </div>
   )
 }

@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
   onboardingQuestions,
   type UploadedFile,
 } from '../data/onboardingQuestions'
+import { supabase } from '../lib/supabase'
 
 interface Submission {
   id: string
@@ -11,27 +12,15 @@ interface Submission {
   answers: Record<string, string | string[] | Record<string, string> | UploadedFile[]>
 }
 
+interface DbClient {
+  id: string
+  submitted_at: string
+  answers: Submission['answers']
+  status: string
+}
+
 type Theme = 'light' | 'dark'
 type Status = 'new' | 'contacted' | 'onboarded'
-
-const SUBMISSIONS_KEY = 'client-onboarding-submissions'
-const STATUS_KEY = 'client-statuses'
-
-function loadSubmissions(): Submission[] {
-  try {
-    return JSON.parse(localStorage.getItem(SUBMISSIONS_KEY) ?? '[]')
-  } catch {
-    return []
-  }
-}
-
-function loadStatuses(): Record<string, Status> {
-  try {
-    return JSON.parse(localStorage.getItem(STATUS_KEY) ?? '{}')
-  } catch {
-    return {}
-  }
-}
 
 function answerText(answer: string | string[] | Record<string, string> | UploadedFile[] | undefined): string {
   if (answer === undefined) return '—'
@@ -140,11 +129,47 @@ function AdminDashboard({
   onToggleTheme: () => void
   onLogout: () => void
 }) {
-  const [submissions, setSubmissions] = useState<Submission[]>(loadSubmissions)
-  const [statuses, setStatuses] = useState<Record<string, Status>>(loadStatuses)
+  const [clients, setClients] = useState<Submission[]>([])
+  const [statuses, setStatuses] = useState<Record<string, Status>>({})
   const [expanded, setExpanded] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | Status>('all')
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+
+  const loadClients = async () => {
+    setLoading(true)
+    setLoadError('')
+    const { data, error } = await supabase
+      .from('clients')
+      .select('id, submitted_at, answers, status')
+      .order('submitted_at', { ascending: false })
+    if (error) {
+      setLoadError(error.message)
+      setLoading(false)
+      return
+    }
+    const rows = (data ?? []) as DbClient[]
+    setClients(
+      rows.map((r) => ({
+        id: r.id,
+        submittedAt: r.submitted_at,
+        answers: r.answers,
+      })),
+    )
+    const statusMap: Record<string, Status> = {}
+    for (const r of rows) {
+      statusMap[r.id] =
+        r.status === 'contacted' || r.status === 'onboarded' ? r.status : 'new'
+    }
+    setStatuses(statusMap)
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    loadClients()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const logout = () => {
     sessionStorage.removeItem('admin-authenticated')
@@ -153,34 +178,37 @@ function AdminDashboard({
 
   const statusOf = (id: string): Status => statuses[id] ?? 'new'
 
-  const cycleStatus = (id: string) => {
+  const cycleStatus = async (id: string) => {
     const current = statusOf(id)
     const next: Status =
       current === 'new' ? 'contacted' : current === 'contacted' ? 'onboarded' : 'new'
-    const updated = { ...statuses, [id]: next }
-    setStatuses(updated)
-    localStorage.setItem(STATUS_KEY, JSON.stringify(updated))
+    setStatuses((prev) => ({ ...prev, [id]: next }))
+    const { error } = await supabase.from('clients').update({ status: next }).eq('id', id)
+    if (error) {
+      setStatuses((prev) => ({ ...prev, [id]: current }))
+    }
   }
 
-  const deleteClient = (id: string) => {
+  const deleteClient = async (id: string) => {
     if (!window.confirm('Remove this client? This cannot be undone.')) return
-    const next = submissions.filter((s) => s.id !== id)
-    setSubmissions(next)
-    localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(next))
-    const updatedStatuses = { ...statuses }
-    delete updatedStatuses[id]
-    setStatuses(updatedStatuses)
-    localStorage.setItem(STATUS_KEY, JSON.stringify(updatedStatuses))
+    const { error } = await supabase.from('clients').delete().eq('id', id)
+    if (error) return
+    setClients((prev) => prev.filter((s) => s.id !== id))
+    setStatuses((prev) => {
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
   }
 
-  const totalClients = submissions.length
-  const consentCount = submissions.filter((s) => s.answers['13'] === 'Yes').length
-  const gateCount = submissions.filter((s) =>
+  const totalClients = clients.length
+  const consentCount = clients.filter((s) => s.answers['13'] === 'Yes').length
+  const gateCount = clients.filter((s) =>
     String(s.answers['11']).startsWith('Yes'),
   ).length
 
   const q = query.trim().toLowerCase()
-  const filtered = submissions.filter((s) => {
+  const filtered = clients.filter((s) => {
     const matchesQuery =
       !q ||
       [
@@ -289,6 +317,13 @@ function AdminDashboard({
           </svg>
           Export CSV
         </button>
+        <button className="theme-toggle dash-refresh" onClick={loadClients} title="Refresh clients">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+            <path d="M21 3v6h-6" />
+          </svg>
+          Refresh
+        </button>
       </motion.div>
 
       <motion.div
@@ -297,7 +332,21 @@ function AdminDashboard({
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, duration: 0.6 }}
       >
-        {submissions.length === 0 ? (
+        {loading ? (
+          <div className="dash-empty">
+            <span className="empty-icon">⬡</span>
+            <h2>Loading clients…</h2>
+          </div>
+        ) : loadError ? (
+          <div className="dash-empty">
+            <span className="empty-icon">!</span>
+            <h2>Could not load clients</h2>
+            <p>{loadError}</p>
+            <button className="btn btn-client" onClick={loadClients}>
+              Try again
+            </button>
+          </div>
+        ) : clients.length === 0 ? (
           <div className="dash-empty">
             <span className="empty-icon">⬡</span>
             <h2>No clients yet</h2>
@@ -312,7 +361,7 @@ function AdminDashboard({
         ) : (
           <>
             <div className="dash-list-title">
-              Showing {filtered.length} of {submissions.length} clients
+              Showing {filtered.length} of {clients.length} clients
             </div>
 
             {filtered.map((submission) => {
