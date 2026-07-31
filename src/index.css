@@ -1586,7 +1586,21 @@ h1 {
 .chat-group {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+}
+
+.chat-group-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chat-group-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .chat-continue {
@@ -1620,6 +1634,11 @@ h1 {
 
 .chat-group .chat-input {
   border-radius: 16px;
+  width: 100%;
+  min-width: 0;
+  height: 56px;
+  background: #fff;
+  border-color: #cbd5e1;
 }
 
 .chat-upload {

@@ -456,17 +456,19 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
               {question.type === 'group' && (
                 <div className="chat-group">
                   {question.fields!.map((field) => (
-                    <input
-                      key={field.key}
-                      className="chat-input"
-                      type="text"
-                      placeholder={field.placeholder}
-                      value={groupValue[field.key] ?? ''}
-                      onChange={(e) => {
-                        setGroupValue((prev) => ({ ...prev, [field.key]: e.target.value }))
-                        setError('')
-                      }}
-                    />
+                    <label className="chat-group-field" key={field.key}>
+                      <span className="chat-group-label">{field.label}</span>
+                      <input
+                        className="chat-input"
+                        type="text"
+                        placeholder={field.placeholder}
+                        value={groupValue[field.key] ?? ''}
+                        onChange={(e) => {
+                          setGroupValue((prev) => ({ ...prev, [field.key]: e.target.value }))
+                          setError('')
+                        }}
+                      />
+                    </label>
                   ))}
                   <button className="chat-continue" onClick={submitGroup} type="button">
                     Send
