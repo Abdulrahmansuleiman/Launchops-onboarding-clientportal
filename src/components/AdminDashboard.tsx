@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { onboardingQuestions } from '../data/onboardingQuestions'
+import { onboardingQuestions, type UploadedFile } from '../data/onboardingQuestions'
 import { supabase } from '../lib/supabase'
 
 interface Submission {
   id: string
   submittedAt: string
-  answers: Record<string, string | string[] | Record<string, string>>
+  answers: Record<string, string | string[] | Record<string, string> | UploadedFile[]>
 }
 
 interface DbClient {
@@ -19,9 +19,18 @@ interface DbClient {
 type Theme = 'light' | 'dark'
 type Status = 'new' | 'contacted' | 'onboarded'
 
-function answerText(answer: string | string[] | Record<string, string> | undefined): string {
+function isUploadArray(value: unknown): value is UploadedFile[] {
+  return Array.isArray(value) && value.length > 0 && typeof value[0] === 'object' && 'name' in value[0]
+}
+
+function answerText(
+  answer: string | string[] | Record<string, string> | UploadedFile[] | undefined
+): string {
   if (answer === undefined) return '—'
-  if (Array.isArray(answer)) return answer.length ? answer.join(', ') : '—'
+  if (Array.isArray(answer)) {
+    if (isUploadArray(answer)) return answer.map((f) => f.name).join(', ')
+    return answer.length ? answer.join(', ') : '—'
+  }
   if (typeof answer === 'object') {
     const parts = Object.entries(answer).map(([label, value]) => `${label}: ${value}`)
     return parts.length ? parts.join(', ') : '—'
@@ -419,7 +428,44 @@ function AdminDashboard({
                             <span className="detail-q">
                               {question.id}. {question.label}
                             </span>
-                            <span className="detail-a">{answerText(value)}</span>
+                            {isUploadArray(value) ? (
+                              <span className="detail-a detail-files">
+                                {value.map((file) => (
+                                  <a
+                                    key={file.name}
+                                    className="detail-file"
+                                    href={file.dataUrl}
+                                    download={file.name}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {file.type.startsWith('image/') ? (
+                                      <img
+                                        className="detail-file-thumb"
+                                        src={file.dataUrl}
+                                        alt={file.name}
+                                      />
+                                    ) : (
+                                      <span className="detail-file-doc">DOC</span>
+                                    )}
+                                    <span className="detail-file-name">{file.name}</span>
+                                    <svg
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    >
+                                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                      <path d="m7 10 5 5 5-5" />
+                                      <path d="M12 15V3" />
+                                    </svg>
+                                  </a>
+                                ))}
+                              </span>
+                            ) : (
+                              <span className="detail-a">{answerText(value)}</span>
+                            )}
                           </div>
                         )
                       })}

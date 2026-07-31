@@ -1,11 +1,18 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { onboardingQuestions, type OnboardingQuestion } from '../data/onboardingQuestions'
+import {
+  onboardingQuestions,
+  type OnboardingQuestion,
+  type UploadedFile,
+} from '../data/onboardingQuestions'
 import { supabase } from '../lib/supabase'
 
-type Answer = string | string[] | Record<string, string>
+type Answer = string | string[] | Record<string, string> | UploadedFile[]
 
 const DRAFT_KEY = 'client-onboarding-draft'
+const MAX_FILE_SIZE = 4 * 1024 * 1024
+const MAX_TOTAL_SIZE = 15 * 1024 * 1024
+const ACCEPT = 'image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx'
 const brandGradient = 'linear-gradient(135deg, #2563eb, #1d4ed8)'
 
 interface ChatMsg {
@@ -15,6 +22,7 @@ interface ChatMsg {
 
 function isValid(question: OnboardingQuestion, answer: Answer | undefined): boolean {
   if (answer === undefined) return false
+  if (question.type === 'upload') return Array.isArray(answer) && answer.length > 0
   if (question.type === 'multi') return Array.isArray(answer) && answer.length > 0
   if (question.type === 'group') {
     const obj = answer as Record<string, string>
@@ -45,7 +53,12 @@ function loadDraft(): { answers: Record<number, Answer>; step: number } | null {
 }
 
 function formatAnswer(answer: Answer): string {
-  if (Array.isArray(answer)) return answer.join(', ')
+  if (Array.isArray(answer)) {
+    if (answer.length && typeof answer[0] === 'object') {
+      return (answer as UploadedFile[]).map((f) => f.name).join(', ')
+    }
+    return answer.join(', ')
+  }
   if (typeof answer === 'object') {
     return Object.values(answer)
       .filter(Boolean)
@@ -72,8 +85,11 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
   const [textValue, setTextValue] = useState('')
   const [groupValue, setGroupValue] = useState<Record<string, string>>({})
   const [multiValue, setMultiValue] = useState<string[]>([])
+  const [uploads, setUploads] = useState<UploadedFile[]>([])
+  const [uploadError, setUploadError] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const textRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const total = onboardingQuestions.length
   const question = onboardingQuestions[step]
@@ -115,6 +131,17 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
     if (question.type === 'text') textRef.current?.focus()
   }, [step, question.type])
 
+  useEffect(() => {
+    if (question.type === 'upload') {
+      const existing = answers[question.id]
+      setUploads(
+        Array.isArray(existing) && typeof existing[0] === 'object'
+          ? (existing as UploadedFile[])
+          : []
+      )
+    }
+  }, [step, question.type, answers])
+
   const completeStep = (answer: Answer, displayText: string) => {
     const updated = { ...answers, [question.id]: answer }
     setAnswers(updated)
@@ -124,6 +151,8 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
     setTextValue('')
     setGroupValue({})
     setMultiValue([])
+    setUploads([])
+    setUploadError('')
     window.setTimeout(() => {
       if (step === total - 1) {
         setSubmitting(true)
@@ -194,6 +223,51 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
     completeStep(option, option)
   }
 
+  const readFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    setError('')
+    setUploadError('')
+    let total = uploads.reduce((sum, file) => sum + file.size, 0)
+    const added: UploadedFile[] = []
+
+    for (const file of Array.from(files)) {
+      if (file.size > MAX_FILE_SIZE) {
+        setUploadError(`${file.name} is too large — max 4MB per file.`)
+        continue
+      }
+      if (total + file.size > MAX_TOTAL_SIZE) {
+        setUploadError('Total upload limit reached (15MB).')
+        break
+      }
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(String(reader.result))
+        reader.onerror = () => reject(new Error('Could not read file'))
+        reader.readAsDataURL(file)
+      })
+      added.push({ name: file.name, size: file.size, type: file.type, dataUrl })
+      total += file.size
+    }
+
+    if (added.length > 0) setUploads((prev) => [...prev, ...added])
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const removeFile = (fileName: string) => {
+    setUploadError('')
+    setUploads((prev) => prev.filter((file) => file.name !== fileName))
+  }
+
+  const submitUpload = () => {
+    if (uploads.length === 0) {
+      setError('Add at least one document to continue.')
+      return
+    }
+    const display =
+      uploads.length === 1 ? uploads[0].name : `${uploads.length} documents added`
+    completeStep(uploads, display)
+  }
+
   const progress = done ? 100 : Math.round((step / total) * 100)
 
   return (
@@ -228,7 +302,7 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
             return (
               <div key={q.id} className={`chat-step ${state}`}>
                 <span className="chat-step-dot">{i < step ? '✓' : i + 1}</span>
-                <span className="chat-step-label">Step {i + 1}</span>
+                <span className="chat-step-label">{q.short}</span>
               </div>
             )
           })}
@@ -396,6 +470,80 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
                   ))}
                   <button className="chat-continue" onClick={submitGroup} type="button">
                     Send
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12h14" />
+                      <path d="m12 5 7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+
+              {question.type === 'upload' && (
+                <div className="chat-upload">
+                  <input
+                    ref={fileInputRef}
+                    className="chat-file-input"
+                    type="file"
+                    multiple
+                    accept={ACCEPT}
+                    onChange={(e) => readFiles(e.target.files)}
+                  />
+                  <button
+                    className="chat-dropzone"
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      readFiles(e.dataTransfer.files)
+                    }}
+                    type="button"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <path d="m17 8-5-5-5 5" />
+                      <path d="M12 3v12" />
+                    </svg>
+                    <span>Tap to add documents</span>
+                    <em>Images, PDFs, Word, Excel · max 4MB each</em>
+                  </button>
+
+                  {uploads.length > 0 && (
+                    <div className="chat-file-list">
+                      {uploads.map((file) => (
+                        <div key={file.name} className="chat-file">
+                          {file.type.startsWith('image/') ? (
+                            <img className="chat-file-thumb" src={file.dataUrl} alt={file.name} />
+                          ) : (
+                            <span className="chat-file-doc">DOC</span>
+                          )}
+                          <div className="chat-file-meta">
+                            <span className="chat-file-name">{file.name}</span>
+                            <span className="chat-file-size">
+                              {(file.size / 1024).toFixed(0)} KB
+                            </span>
+                          </div>
+                          <button
+                            className="chat-file-remove"
+                            onClick={() => removeFile(file.name)}
+                            type="button"
+                            aria-label={`Remove ${file.name}`}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {uploadError && <div className="chat-err">{uploadError}</div>}
+
+                  <button
+                    className="chat-continue"
+                    onClick={submitUpload}
+                    disabled={uploads.length === 0}
+                    type="button"
+                  >
+                    Continue
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M5 12h14" />
                       <path d="m12 5 7 7-7 7" />

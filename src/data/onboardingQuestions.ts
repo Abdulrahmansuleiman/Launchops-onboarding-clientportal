@@ -1,4 +1,11 @@
-export type QuestionType = 'text' | 'single' | 'multi' | 'group'
+export type QuestionType = 'text' | 'single' | 'multi' | 'group' | 'upload'
+
+export interface UploadedFile {
+  name: string
+  size: number
+  type: string
+  dataUrl: string
+}
 
 export interface QuestionField {
   key: string
@@ -8,7 +15,8 @@ export interface QuestionField {
 
 export interface OnboardingQuestion {
   id: number
-  section: 'Client Info' | 'Onboarding Questions'
+  section: 'About You' | 'Your Business' | 'Your Goals' | 'Your Marketing' | 'Working With Us'
+  short: string
   label: string
   type: QuestionType
   inputType?: 'text' | 'email' | 'tel' | 'url'
@@ -20,14 +28,16 @@ export interface OnboardingQuestion {
 export const onboardingQuestions: OnboardingQuestion[] = [
   {
     id: 1,
-    section: 'Client Info',
+    section: 'About You',
+    short: 'Your name',
     label: 'What is your full name?',
     type: 'text',
     placeholder: 'John Doe',
   },
   {
     id: 2,
-    section: 'Client Info',
+    section: 'About You',
+    short: 'Email',
     label: 'What is your email address?',
     type: 'text',
     inputType: 'email',
@@ -35,7 +45,8 @@ export const onboardingQuestions: OnboardingQuestion[] = [
   },
   {
     id: 3,
-    section: 'Client Info',
+    section: 'About You',
+    short: 'Phone',
     label: 'What is your WhatsApp number?',
     type: 'text',
     inputType: 'tel',
@@ -43,7 +54,8 @@ export const onboardingQuestions: OnboardingQuestion[] = [
   },
   {
     id: 4,
-    section: 'Client Info',
+    section: 'About You',
+    short: 'Location',
     label: 'Where is your business located?',
     type: 'group',
     fields: [
@@ -54,89 +66,129 @@ export const onboardingQuestions: OnboardingQuestion[] = [
   },
   {
     id: 5,
-    section: 'Client Info',
+    section: 'Your Business',
+    short: 'Business name',
     label: 'What is your business name?',
     type: 'text',
     placeholder: 'Acme Plumbing Co.',
   },
   {
     id: 6,
-    section: 'Onboarding Questions',
-    label: 'What is your direct Google review link?',
+    section: 'Your Business',
+    short: 'Website',
+    label: 'What is your website URL?',
     type: 'text',
     inputType: 'url',
-    placeholder: 'https://g.page/r/...',
+    placeholder: 'https://yourbusiness.com',
   },
   {
     id: 7,
-    section: 'Onboarding Questions',
-    label: 'What common questions do customers usually text or call in about?',
-    type: 'multi',
+    section: 'Your Business',
+    short: 'Industry',
+    label: 'What industry is your business in?',
+    type: 'single',
     options: [
-      'Hours of operation',
-      'Pricing',
-      'Services offered',
-      'Availability / booking',
-      'Location',
-      'Emergency services',
+      'Home Services',
+      'Healthcare & Wellness',
+      'Legal',
+      'Automotive',
+      'Real Estate',
+      'Food & Hospitality',
+      'Beauty & Salons',
+      'Retail & E-commerce',
+      'Construction & Trades',
       'Other',
     ],
   },
   {
     id: 8,
-    section: 'Onboarding Questions',
-    label: 'At what point should a review request go out after a job/service is completed?',
-    type: 'single',
-    options: ['Immediately', 'A few hours later', 'The next day'],
+    section: 'Your Business',
+    short: 'About your business',
+    label: 'Tell us a bit about your business — what do you do and who do you serve?',
+    type: 'text',
+    placeholder: 'e.g. We provide 24/7 emergency plumbing for homes and offices.',
   },
   {
     id: 9,
-    section: 'Onboarding Questions',
-    label: "How should the agent's tone sound?",
-    type: 'multi',
-    options: [
-      'Casual',
-      'Professional',
-      'Friendly',
-      "Use the customer's name",
-      "Use my rep's name",
-    ],
+    section: 'Your Business',
+    short: 'Business age',
+    label: 'How long has your business been running?',
+    type: 'single',
+    options: ['Less than 1 year', '1–2 years', '3–5 years', '6–10 years', '10+ years'],
   },
   {
     id: 10,
-    section: 'Onboarding Questions',
-    label: "If a customer asks something the agent doesn't know or seems upset, who should be notified?",
-    placeholder: "Just their name, e.g. Sarah (Operations Manager)",
+    section: 'Your Goals',
+    short: '3-month goal',
+    label: 'What is your main goal for the next 3 months?',
     type: 'text',
+    placeholder: 'e.g. More leads, more booked jobs, more 5-star reviews',
   },
   {
     id: 11,
-    section: 'Onboarding Questions',
-    label: 'Do you want a "gate" step — asking if the experience was good before sending them to leave a Google review?',
-    type: 'single',
-    options: [
-      'Yes — filter unhappy customers away from public reviews',
-      'No — send everyone to leave a review',
-    ],
+    section: 'Your Goals',
+    short: '3–6 month vision',
+    label: 'Where do you see yourself in 3–6 months working with us?',
+    type: 'text',
+    placeholder: 'e.g. A steady flow of new customers and a system that runs itself',
   },
   {
     id: 12,
-    section: 'Onboarding Questions',
-    label: 'For inquiries, is there anything the agent should NEVER say or promise?',
-    placeholder: 'e.g. pricing guarantees, medical/legal claims...',
-    type: 'text',
+    section: 'Your Marketing',
+    short: 'Paid marketing',
+    label: 'Are you currently running any paid ads or marketing right now?',
+    type: 'single',
+    options: ['Yes', 'No'],
   },
   {
     id: 13,
-    section: 'Onboarding Questions',
-    label: 'Do customers consent to receiving texts from your business?',
+    section: 'Your Marketing',
+    short: 'Past marketing',
+    label: 'Have you run paid ads or marketing in the past?',
     type: 'single',
     options: ['Yes', 'No'],
   },
   {
     id: 14,
-    section: 'Onboarding Questions',
-    label: 'Who should get notified when a new 5-star review or a hot inquiry comes in?',
+    section: 'Working With Us',
+    short: 'Confidence',
+    label: 'How confident do you feel about working with us?',
+    type: 'single',
+    options: ['Very confident', 'Pretty confident', 'Not sure yet — I want to talk more'],
+  },
+  {
+    id: 15,
+    section: 'Working With Us',
+    short: 'CRM',
+    label:
+      "You'll be using our system as part of your package — at no extra cost. Would you prefer to use ours, or migrate to GoHighLevel where you'd pay for it yourself?",
+    type: 'single',
+    options: [
+      'Use the LaunchOps system (included in my package)',
+      'Migrate to GoHighLevel (I pay for it myself)',
+    ],
+  },
+  {
+    id: 16,
+    section: 'Working With Us',
+    short: 'Referral',
+    label:
+      'If we help improve your business, would you refer someone to us — someone in the same industry as you? Who would that be?',
+    type: 'text',
+    placeholder: 'Name and business, if you have someone in mind',
+  },
+  {
+    id: 17,
+    section: 'Working With Us',
+    short: 'Documents',
+    label: 'Upload any documents we might need — contracts, brand files, logos, or marketing materials.',
+    type: 'upload',
+  },
+  {
+    id: 18,
+    section: 'Working With Us',
+    short: 'Notifications',
+    label: 'Who should get notified when a new 5-star review or hot inquiry comes in?',
     placeholder: 'Name, email or WhatsApp number',
     type: 'text',
   },
