@@ -1587,6 +1587,8 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  width: 100%;
+  max-width: 480px;
 }
 
 .chat-group-field {
@@ -1633,11 +1635,11 @@ h1 {
 }
 
 .chat-group .chat-input {
-  border-radius: 14px;
+  border-radius: 16px;
   width: 100%;
   min-width: 0;
-  height: 64px;
-  padding: 0 18px;
+  height: 60px;
+  padding: 0 24px;
   font-size: 16px;
   background: #fff;
   border-color: #cbd5e1;
