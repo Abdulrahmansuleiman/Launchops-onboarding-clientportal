@@ -1,15 +1,12 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import {
-  onboardingQuestions,
-  type UploadedFile,
-} from '../data/onboardingQuestions'
+import { onboardingQuestions } from '../data/onboardingQuestions'
 import { supabase } from '../lib/supabase'
 
 interface Submission {
   id: string
   submittedAt: string
-  answers: Record<string, string | string[] | Record<string, string> | UploadedFile[]>
+  answers: Record<string, string | string[] | Record<string, string>>
 }
 
 interface DbClient {
@@ -22,14 +19,9 @@ interface DbClient {
 type Theme = 'light' | 'dark'
 type Status = 'new' | 'contacted' | 'onboarded'
 
-function answerText(answer: string | string[] | Record<string, string> | UploadedFile[] | undefined): string {
+function answerText(answer: string | string[] | Record<string, string> | undefined): string {
   if (answer === undefined) return '—'
-  if (Array.isArray(answer)) {
-    if (answer.length && typeof answer[0] === 'object') {
-      return (answer as UploadedFile[]).map((f) => f.name).join(', ')
-    }
-    return answer.length ? answer.join(', ') : '—'
-  }
+  if (Array.isArray(answer)) return answer.length ? answer.join(', ') : '—'
   if (typeof answer === 'object') {
     const parts = Object.entries(answer).map(([label, value]) => `${label}: ${value}`)
     return parts.length ? parts.join(', ') : '—'
@@ -422,39 +414,12 @@ function AdminDashboard({
                       </div>
                       {onboardingQuestions.map((question) => {
                         const value = a[question.id]
-                        const uploads =
-                          question.type === 'upload' &&
-                          Array.isArray(value) &&
-                          value.length > 0 &&
-                          typeof value[0] === 'object'
-                            ? (value as UploadedFile[])
-                            : null
                         return (
                           <div className="detail-row" key={question.id}>
                             <span className="detail-q">
                               {question.id}. {question.label}
                             </span>
-                            {uploads ? (
-                              <span className="detail-a file-links">
-                                {uploads.map((file) => (
-                                  <a
-                                    key={file.name}
-                                    className="file-link"
-                                    href={file.dataUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    download={file.name}
-                                  >
-                                    {file.name}
-                                    <span className="file-link-size">
-                                      {(file.size / 1024).toFixed(0)} KB
-                                    </span>
-                                  </a>
-                                ))}
-                              </span>
-                            ) : (
-                              <span className="detail-a">{answerText(value)}</span>
-                            )}
+                            <span className="detail-a">{answerText(value)}</span>
                           </div>
                         )
                       })}

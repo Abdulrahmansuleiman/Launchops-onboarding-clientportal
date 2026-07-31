@@ -1,11 +1,4 @@
-export type QuestionType = 'text' | 'single' | 'multi' | 'group' | 'upload'
-
-export interface UploadedFile {
-  name: string
-  size: number
-  type: string
-  dataUrl: string
-}
+export type QuestionType = 'text' | 'single' | 'multi' | 'group'
 
 export interface QuestionField {
   key: string
@@ -146,11 +139,5 @@ export const onboardingQuestions: OnboardingQuestion[] = [
     label: 'Who should get notified when a new 5-star review or a hot inquiry comes in?',
     placeholder: 'Name, email or WhatsApp number',
     type: 'text',
-  },
-  {
-    id: 15,
-    section: 'Onboarding Questions',
-    label: 'Upload any images or documents you think we might need (logo, photos, flyers, contracts).',
-    type: 'upload',
   },
 ]
