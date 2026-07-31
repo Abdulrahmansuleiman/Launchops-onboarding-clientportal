@@ -1,0 +1,386 @@
+import { useState } from 'react'
+import { motion } from 'framer-motion'
+import { onboardingQuestions } from '../data/onboardingQuestions'
+
+interface Submission {
+  id: string
+  submittedAt: string
+  answers: Record<string, string | string[] | Record<string, string>>
+}
+
+type Theme = 'light' | 'dark'
+type Status = 'new' | 'contacted' | 'onboarded'
+
+const SUBMISSIONS_KEY = 'client-onboarding-submissions'
+const STATUS_KEY = 'client-statuses'
+
+function loadSubmissions(): Submission[] {
+  try {
+    return JSON.parse(localStorage.getItem(SUBMISSIONS_KEY) ?? '[]')
+  } catch {
+    return []
+  }
+}
+
+function loadStatuses(): Record<string, Status> {
+  try {
+    return JSON.parse(localStorage.getItem(STATUS_KEY) ?? '{}')
+  } catch {
+    return {}
+  }
+}
+
+function answerText(answer: string | string[] | Record<string, string> | undefined): string {
+  if (answer === undefined) return '—'
+  if (Array.isArray(answer)) return answer.length ? answer.join(', ') : '—'
+  if (typeof answer === 'object') {
+    const parts = Object.entries(answer).map(([label, value]) => `${label}: ${value}`)
+    return parts.length ? parts.join(', ') : '—'
+  }
+  return answer.trim() || '—'
+}
+
+function locationParts(answers: Submission['answers']): {
+  city: string
+  state: string
+  country: string
+} {
+  const loc = answers['4']
+  if (!loc || typeof loc !== 'object' || Array.isArray(loc)) {
+    return { city: '', state: '', country: '' }
+  }
+  const { city = '', state = '', country = '' } = loc as Record<string, string>
+  return { city, state, country }
+}
+
+function locationText(answers: Submission['answers']): string {
+  const { city, state, country } = locationParts(answers)
+  return [city, state, country].filter(Boolean).join(', ') || '—'
+}
+
+const STATUS_LABEL: Record<Status, string> = {
+  new: 'New',
+  contacted: 'Contacted',
+  onboarded: 'Onboarded',
+}
+
+function escapeCsv(value: string): string {
+  return `"${(value ?? '').replace(/"/g, '""')}"`
+}
+
+function exportCsv(rows: Submission[], statuses: Record<string, Status>) {
+  const headers = [
+    'Full Name',
+    'Email',
+    'WhatsApp',
+    'City',
+    'State',
+    'Country',
+    'Business Name',
+    'Google Review Link',
+    'Common Questions',
+    'Review Timing',
+    'Tone',
+    'Notify If Unknown/Upset',
+    'Review Gate',
+    'Never Say or Promise',
+    'Text Consent',
+    'Notify 5-Star/Hot Inquiry',
+    'Submitted At',
+    'Status',
+  ]
+  const lines = rows.map((s) => {
+    const a = s.answers
+    const loc = locationParts(a)
+    const row = [
+      answerText(a['1']),
+      answerText(a['2']),
+      answerText(a['3']),
+      loc.city,
+      loc.state,
+      loc.country,
+      answerText(a['5']),
+      answerText(a['6']),
+      answerText(a['7']),
+      answerText(a['8']),
+      answerText(a['10']),
+      answerText(a['11']),
+      answerText(a['12']),
+      answerText(a['13']),
+      answerText(a['14']),
+      new Date(s.submittedAt).toLocaleString(),
+      STATUS_LABEL[statuses[s.id] ?? 'new'],
+    ]
+    return row.map(escapeCsv).join(',')
+  })
+  const csv = '\uFEFF' + [headers.map(escapeCsv).join(','), ...lines].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `clients-${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+function AdminDashboard({
+  theme,
+  onToggleTheme,
+  onLogout,
+}: {
+  theme: Theme
+  onToggleTheme: () => void
+  onLogout: () => void
+}) {
+  const [submissions, setSubmissions] = useState<Submission[]>(loadSubmissions)
+  const [statuses, setStatuses] = useState<Record<string, Status>>(loadStatuses)
+  const [expanded, setExpanded] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | Status>('all')
+
+  const logout = () => {
+    sessionStorage.removeItem('admin-authenticated')
+    onLogout()
+  }
+
+  const statusOf = (id: string): Status => statuses[id] ?? 'new'
+
+  const cycleStatus = (id: string) => {
+    const current = statusOf(id)
+    const next: Status =
+      current === 'new' ? 'contacted' : current === 'contacted' ? 'onboarded' : 'new'
+    const updated = { ...statuses, [id]: next }
+    setStatuses(updated)
+    localStorage.setItem(STATUS_KEY, JSON.stringify(updated))
+  }
+
+  const deleteClient = (id: string) => {
+    if (!window.confirm('Remove this client? This cannot be undone.')) return
+    const next = submissions.filter((s) => s.id !== id)
+    setSubmissions(next)
+    localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(next))
+    const updatedStatuses = { ...statuses }
+    delete updatedStatuses[id]
+    setStatuses(updatedStatuses)
+    localStorage.setItem(STATUS_KEY, JSON.stringify(updatedStatuses))
+  }
+
+  const totalClients = submissions.length
+  const consentCount = submissions.filter((s) => s.answers['13'] === 'Yes').length
+  const gateCount = submissions.filter((s) =>
+    String(s.answers['11']).startsWith('Yes'),
+  ).length
+
+  const q = query.trim().toLowerCase()
+  const filtered = submissions.filter((s) => {
+    const matchesQuery =
+      !q ||
+      [
+        s.answers['1'],
+        s.answers['5'],
+        s.answers['2'],
+        s.answers['3'],
+        locationText(s.answers),
+      ].some((value) => String(value ?? '').toLowerCase().includes(q))
+    const matchesStatus = statusFilter === 'all' || statusOf(s.id) === statusFilter
+    return matchesQuery && matchesStatus
+  })
+
+  return (
+    <div className="dashboard" data-theme={theme}>
+      <motion.header
+        className="dash-header"
+        initial={{ opacity: 0, y: -16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <div className="dash-title">
+          <span className="brand-icon small">⬡</span>
+          <div>
+            <h1>Admin Dashboard</h1>
+            <p>All onboarded clients for your agency</p>
+          </div>
+        </div>
+        <div className="dash-header-actions">
+          <button className="theme-toggle" onClick={onToggleTheme}>
+            {theme === 'light' ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+              </svg>
+            )}
+            {theme === 'light' ? 'Dark mode' : 'Light mode'}
+          </button>
+          <button className="dash-logout" onClick={logout}>
+            Log out
+          </button>
+        </div>
+      </motion.header>
+
+      <motion.div
+        className="dash-stats"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15, duration: 0.6 }}
+      >
+        <div className="stat-card">
+          <span className="stat-value">{totalClients}</span>
+          <span className="stat-label">Total Clients</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-value">{consentCount}</span>
+          <span className="stat-label">Consent to Texts</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-value">{gateCount}</span>
+          <span className="stat-label">Review Gate Enabled</span>
+        </div>
+      </motion.div>
+
+      <motion.div
+        className="dash-toolbar"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.22, duration: 0.6 }}
+      >
+        <div className="dash-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search by name, business, email, WhatsApp or location..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+        <select
+          className="dash-select"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as 'all' | Status)}
+        >
+          <option value="all">All statuses</option>
+          <option value="new">New</option>
+          <option value="contacted">Contacted</option>
+          <option value="onboarded">Onboarded</option>
+        </select>
+        <button
+          className="dash-export"
+          onClick={() => exportCsv(filtered, statuses)}
+          disabled={filtered.length === 0}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <path d="m7 10 5 5 5-5" />
+            <path d="M12 15V3" />
+          </svg>
+          Export CSV
+        </button>
+      </motion.div>
+
+      <motion.div
+        className="dash-list"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3, duration: 0.6 }}
+      >
+        {submissions.length === 0 ? (
+          <div className="dash-empty">
+            <span className="empty-icon">⬡</span>
+            <h2>No clients yet</h2>
+            <p>Complete the client onboarding flow to see clients appear here.</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="dash-empty">
+            <span className="empty-icon">⬡</span>
+            <h2>No clients match</h2>
+            <p>Try a different search or status filter.</p>
+          </div>
+        ) : (
+          <>
+            <div className="dash-list-title">
+              Showing {filtered.length} of {submissions.length} clients
+            </div>
+
+            {filtered.map((submission) => {
+              const a = submission.answers
+              const isOpen = expanded === submission.id
+              const status = statusOf(submission.id)
+              return (
+                <div className={`client-card${isOpen ? ' open' : ''}`} key={submission.id}>
+                  <div className="client-head">
+                    <div className="client-avatar">{answerText(a['1']).charAt(0) || '?'}</div>
+                    <div className="client-main">
+                      <h3>{answerText(a['1'])}</h3>
+                      <p className="client-business">{answerText(a['5'])}</p>
+                    </div>
+                    <div className="client-meta">
+                      <span>{answerText(a['2'])}</span>
+                      <span>{answerText(a['3'])}</span>
+                      <span>{locationText(a)}</span>
+                    </div>
+                    <div className="client-actions">
+                      <button
+                        className={`status-badge ${status}`}
+                        onClick={() => cycleStatus(submission.id)}
+                        title="Click to change status"
+                      >
+                        {STATUS_LABEL[status]}
+                      </button>
+                      <button
+                        className="dash-expand"
+                        onClick={() => setExpanded(isOpen ? null : submission.id)}
+                      >
+                        {isOpen ? 'Hide' : 'View'} answers
+                      </button>
+                      <button
+                        className="dash-delete"
+                        onClick={() => deleteClient(submission.id)}
+                        aria-label="Delete client"
+                        title="Delete client"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 6h18" />
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  {isOpen && (
+                    <motion.div
+                      className="client-detail"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      transition={{ duration: 0.3, ease: 'easeOut' }}
+                    >
+                      <div className="client-submitted">
+                        Submitted {new Date(submission.submittedAt).toLocaleString()}
+                      </div>
+                      {onboardingQuestions.map((question) => (
+                        <div className="detail-row" key={question.id}>
+                          <span className="detail-q">
+                            {question.id}. {question.label}
+                          </span>
+                          <span className="detail-a">{answerText(a[question.id])}</span>
+                        </div>
+                      ))}
+                    </motion.div>
+                  )}
+                </div>
+              )
+            })}
+          </>
+        )}
+      </motion.div>
+    </div>
+  )
+}
+
+export default AdminDashboard
