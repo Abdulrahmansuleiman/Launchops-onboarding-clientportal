@@ -1,10 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { onboardingQuestions, type OnboardingQuestion } from '../data/onboardingQuestions'
+import {
+  onboardingQuestions,
+  type OnboardingQuestion,
+  type UploadedFile,
+} from '../data/onboardingQuestions'
 
-type Answer = string | string[] | Record<string, string>
+type Answer = string | string[] | Record<string, string> | UploadedFile[]
 
 const DRAFT_KEY = 'client-onboarding-draft'
+const MAX_FILE_SIZE = 4 * 1024 * 1024
+const MAX_TOTAL_SIZE = 15 * 1024 * 1024
+const ACCEPT = 'image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx'
 
 const slideVariants = {
   enter: (dir: number) => ({ opacity: 0, x: dir * 60, scale: 0.98 }),
@@ -14,6 +21,7 @@ const slideVariants = {
 
 function isValid(question: OnboardingQuestion, answer: Answer | undefined): boolean {
   if (answer === undefined) return false
+  if (question.type === 'upload') return true
   if (question.type === 'multi') return Array.isArray(answer) && answer.length > 0
   if (question.type === 'group') {
     const obj = answer as Record<string, string>
@@ -43,6 +51,12 @@ function loadDraft(): { answers: Record<number, Answer>; step: number } | null {
   }
 }
 
+function toUploads(answer: Answer | undefined): UploadedFile[] | null {
+  if (!answer || !Array.isArray(answer) || answer.length === 0) return null
+  if (typeof answer[0] !== 'object') return null
+  return answer as UploadedFile[]
+}
+
 function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: () => void }) {
   const [draft] = useState(loadDraft)
   const [step, setStep] = useState(draft?.step ?? 0)
@@ -51,9 +65,15 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
   const [error, setError] = useState(false)
   const [done, setDone] = useState(false)
   const [reference, setReference] = useState('')
+  const [uploadError, setUploadError] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(answers))
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(answers))
+    } catch {
+      setUploadError('Storage is full — remove some files to continue.')
+    }
   }, [answers])
 
   const total = onboardingQuestions.length
@@ -109,6 +129,48 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
         ? { ...(answer as Record<string, string>) }
         : {}
     setAnswers((prev) => ({ ...prev, [question.id]: { ...current, [key]: value } }))
+  }
+
+  const readFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    setError(false)
+    setUploadError('')
+    const current = toUploads(answers[question.id]) ?? []
+    let total = current.reduce((sum, file) => sum + file.size, 0)
+    const added: UploadedFile[] = []
+
+    for (const file of Array.from(files)) {
+      if (file.size > MAX_FILE_SIZE) {
+        setUploadError(`${file.name} is too large — max 4MB per file.`)
+        continue
+      }
+      if (total + file.size > MAX_TOTAL_SIZE) {
+        setUploadError('Total upload limit reached (15MB).')
+        break
+      }
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(String(reader.result))
+        reader.onerror = () => reject(new Error('Could not read file'))
+        reader.readAsDataURL(file)
+      })
+      added.push({ name: file.name, size: file.size, type: file.type, dataUrl })
+      total += file.size
+    }
+
+    if (added.length > 0) {
+      setAnswers((prev) => ({ ...prev, [question.id]: [...current, ...added] }))
+    }
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const removeFile = (fileName: string) => {
+    setUploadError('')
+    const current = toUploads(answers[question.id]) ?? []
+    setAnswers((prev) => ({
+      ...prev,
+      [question.id]: current.filter((file) => file.name !== fileName),
+    }))
   }
 
   const toggleOption = (option: string) => {
@@ -277,6 +339,69 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
             </div>
           )}
 
+          {question.type === 'upload' && (
+            <div>
+              <div
+                className="dropzone"
+                role="button"
+                tabIndex={0}
+                onClick={() => fileInputRef.current?.click()}
+                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && fileInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  readFiles(e.dataTransfer.files)
+                }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <path d="m17 8-5-5-5 5" />
+                  <path d="M12 3v12" />
+                </svg>
+                <p>Drag &amp; drop files here or click to browse</p>
+                <span>Images, PDFs, docs &middot; max 4MB per file</span>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept={ACCEPT}
+                className="file-input"
+                onChange={(e) => readFiles(e.target.files)}
+              />
+              {(() => {
+                const uploads = toUploads(answer) ?? []
+                return uploads.length > 0 ? (
+                  <div className="file-list">
+                    {uploads.map((file) => (
+                      <div className="file-item" key={file.name}>
+                        {file.type.startsWith('image/') ? (
+                          <img className="file-thumb" src={file.dataUrl} alt={file.name} />
+                        ) : (
+                          <span className="file-doc">DOC</span>
+                        )}
+                        <div className="file-info">
+                          <span className="file-name">{file.name}</span>
+                          <span className="file-size">
+                            {(file.size / 1024).toFixed(0)} KB
+                          </span>
+                        </div>
+                        <button
+                          className="file-remove"
+                          onClick={() => removeFile(file.name)}
+                          aria-label={`Remove ${file.name}`}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null
+              })()}
+              {uploadError && <p className="quiz-error">{uploadError}</p>}
+            </div>
+          )}
+
           {question.type === 'single' && (
             <div className="quiz-options">
               {question.options!.map((option) => (
@@ -295,7 +420,7 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
           {question.type === 'multi' && (
             <div className="quiz-chips">
               {question.options!.map((option) => {
-                const selected = Array.isArray(answer) && answer.includes(option)
+                const selected = Array.isArray(answer) && (answer as string[]).includes(option)
                 return (
                   <button
                     key={option}
