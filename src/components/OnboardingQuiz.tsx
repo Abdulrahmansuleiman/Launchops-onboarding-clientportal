@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase'
 type Answer = string | string[] | Record<string, string>
 
 const DRAFT_KEY = 'client-onboarding-draft'
-const brandGradient = 'linear-gradient(135deg, #0D2A28, #1D5853)'
+const brandGradient = 'linear-gradient(135deg, #2563eb, #1d4ed8)'
 
 interface ChatMsg {
   role: 'ai' | 'user'
@@ -418,7 +418,7 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
               className="check"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="#0D2A28"
+              stroke="#2563eb"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"

@@ -7,81 +7,102 @@ import AdminDashboard from './components/AdminDashboard'
 type View = 'welcome' | 'onboarding' | 'admin' | 'dashboard'
 type Theme = 'light' | 'dark'
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 24 },
-  visible: (delay: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.7, delay, ease: [0.22, 1, 0.36, 1] as const },
-  }),
+function RocketIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
+      <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
+      <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" />
+      <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
+    </svg>
+  )
+}
+
+function ShieldIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  )
 }
 
 function Welcome({ onClient, onAdmin }: { onClient: () => void; onAdmin: () => void }) {
   return (
-    <motion.div
-      className="card"
-      initial={{ opacity: 0, scale: 0.92, y: 40 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-    >
-      <motion.div
-        className="brand"
-        initial={{ opacity: 0, rotate: -8, scale: 0.6 }}
-        animate={{ opacity: 1, rotate: 0, scale: 1 }}
-        transition={{ type: 'spring', stiffness: 160, damping: 14, delay: 0.15 }}
-      >
-        <span className="brand-icon">⬡</span>
-      </motion.div>
+    <div className="lp">
+      <header className="lp-header">
+        <div className="lp-brand">
+          <span className="lp-logo">
+            <RocketIcon />
+          </span>
+          <span className="lp-name">LaunchOps</span>
+        </div>
+        <button className="lp-admin-link" onClick={onAdmin} type="button">
+          <ShieldIcon />
+          Admin
+        </button>
+      </header>
 
-      <motion.h1 variants={fadeUp} initial="hidden" animate="visible" custom={0.25}>
-        Welcome to the Client Portal
-      </motion.h1>
+      <main className="lp-main">
+        <section className="lp-intro">
+          <span className="lp-badge">Client onboarding</span>
+          <h1 className="lp-title">
+            Get your business set up with LaunchOps.
+          </h1>
+          <p className="lp-desc">
+            Tell us about your business, your goals, and how you run things today.
+            This short onboarding makes sure your LaunchOps team can hit the ground
+            running — no back-and-forth, no repeated questions.
+          </p>
+        </section>
 
-      <motion.p className="subtitle" variants={fadeUp} initial="hidden" animate="visible" custom={0.4}>
-        Choose how you would like to sign in to continue.
-      </motion.p>
+        <section className="lp-cards">
+          <motion.button
+            className="lp-card"
+            onClick={onClient}
+            type="button"
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <span className="lp-card-icon">
+              <RocketIcon />
+            </span>
+            <span className="lp-card-text">
+              <span className="lp-card-title">Start onboarding</span>
+              <span className="lp-card-desc">
+                Complete the client onboarding flow — takes about 2 minutes.
+              </span>
+            </span>
+            <svg className="lp-card-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
+            </svg>
+          </motion.button>
 
-      <div className="actions">
-        <motion.button
-          className="btn btn-client"
-          variants={fadeUp}
-          initial="hidden"
-          animate="visible"
-          custom={0.55}
-          whileHover={{ scale: 1.04, y: -3 }}
-          whileTap={{ scale: 0.97 }}
-          onClick={onClient}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-          Sign in as Client
-          <span className="btn-arrow">→</span>
-        </motion.button>
-
-        <motion.button
-          className="btn btn-admin"
-          variants={fadeUp}
-          initial="hidden"
-          animate="visible"
-          custom={0.7}
-          whileHover={{ scale: 1.04, y: -3 }}
-          whileTap={{ scale: 0.97 }}
-          onClick={onAdmin}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-          </svg>
-          Sign in as Admin
-          <span className="btn-arrow">→</span>
-        </motion.button>
-      </div>
-
-      <motion.div className="footer" variants={fadeUp} initial="hidden" animate="visible" custom={0.85}>
-        <span className="dot" /> Secure access &middot; Protected by SSO
-      </motion.div>
-    </motion.div>
+          <motion.button
+            className="lp-card"
+            onClick={onAdmin}
+            type="button"
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <span className="lp-card-icon">
+              <ShieldIcon />
+            </span>
+            <span className="lp-card-text">
+              <span className="lp-card-title">Admin dashboard</span>
+              <span className="lp-card-desc">
+                View and manage every onboarding submission.
+              </span>
+            </span>
+            <svg className="lp-card-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
+            </svg>
+          </motion.button>
+        </section>
+      </main>
+    </div>
   )
 }
 
@@ -102,9 +123,9 @@ function App() {
 
   return (
     <div
-      className={`welcome${view === 'dashboard' ? ' welcome-dash' : ''}${
-        view === 'onboarding' ? ' welcome-chat' : ''
-      }`}
+      className={`welcome${view === 'welcome' ? ' welcome-landing' : ''}${
+        view === 'dashboard' ? ' welcome-dash' : ''
+      }${view === 'onboarding' ? ' welcome-chat' : ''}`}
       data-theme={view === 'dashboard' ? theme : undefined}
     >
       {view === 'welcome' && (
