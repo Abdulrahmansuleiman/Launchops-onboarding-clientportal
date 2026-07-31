@@ -67,6 +67,7 @@ function escapeCsv(value: string): string {
 }
 
 function exportCsv(rows: Submission[], statuses: Record<string, Status>) {
+  const csvQuestions = onboardingQuestions.filter((q) => q.id !== 4)
   const headers = [
     'Full Name',
     'Email',
@@ -74,16 +75,7 @@ function exportCsv(rows: Submission[], statuses: Record<string, Status>) {
     'City',
     'State',
     'Country',
-    'Business Name',
-    'Google Review Link',
-    'Common Questions',
-    'Review Timing',
-    'Tone',
-    'Notify If Unknown/Upset',
-    'Review Gate',
-    'Never Say or Promise',
-    'Text Consent',
-    'Notify 5-Star/Hot Inquiry',
+    ...csvQuestions.map((q) => q.label),
     'Submitted At',
     'Status',
   ]
@@ -97,15 +89,7 @@ function exportCsv(rows: Submission[], statuses: Record<string, Status>) {
       loc.city,
       loc.state,
       loc.country,
-      answerText(a['5']),
-      answerText(a['6']),
-      answerText(a['7']),
-      answerText(a['8']),
-      answerText(a['10']),
-      answerText(a['11']),
-      answerText(a['12']),
-      answerText(a['13']),
-      answerText(a['14']),
+      ...csvQuestions.map((q) => answerText(a[q.id])),
       new Date(s.submittedAt).toLocaleString(),
       STATUS_LABEL[statuses[s.id] ?? 'new'],
     ]
