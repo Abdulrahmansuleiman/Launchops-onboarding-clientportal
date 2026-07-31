@@ -238,6 +238,11 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
       </aside>
 
       <div className="chat-mobile-head">
+        <button className="chat-mobile-back" onClick={onExit} type="button" aria-label="Back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m15 18-6-6 6-6" />
+          </svg>
+        </button>
         <span className="chat-logo chat-logo-sm">⬡</span>
         <span className="chat-mobile-name">LaunchOps</span>
         <span className="chat-mobile-pct">{progress}%</span>
@@ -304,7 +309,8 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
           </div>
 
           {!done && (
-            <div className="chat-controls">
+            <div className="chat-bar">
+              <div className="chat-controls">
               {question.type === 'text' && (
                 <div className="chat-input-row">
                   <input
@@ -397,6 +403,7 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
                   </button>
                 </div>
               )}
+              </div>
             </div>
           )}
         </div>
