@@ -51,8 +51,8 @@ function Welcome({ onClient, onAdmin }: { onClient: () => void; onAdmin: () => v
           </h1>
           <p className="lp-desc">
             Tell us about your business, your goals, and how you run things today.
-            This short onboarding makes sure your LaunchOps team can hit the ground
-            running — no back-and-forth, no repeated questions.
+            It takes about 2 minutes, and it means your LaunchOps team can start
+            working for you without a long back and forth.
           </p>
         </section>
 
@@ -70,7 +70,7 @@ function Welcome({ onClient, onAdmin }: { onClient: () => void; onAdmin: () => v
             <span className="lp-card-text">
               <span className="lp-card-title">Start onboarding</span>
               <span className="lp-card-desc">
-                Complete the client onboarding flow — takes about 2 minutes.
+                Fill this in and you're done in about 2 minutes.
               </span>
             </span>
             <svg className="lp-card-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

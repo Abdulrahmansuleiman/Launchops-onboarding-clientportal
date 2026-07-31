@@ -26,16 +26,16 @@ function isUploadArray(value: unknown): value is UploadedFile[] {
 function answerText(
   answer: string | string[] | Record<string, string> | UploadedFile[] | undefined
 ): string {
-  if (answer === undefined) return '—'
+  if (answer === undefined) return ''
   if (Array.isArray(answer)) {
     if (isUploadArray(answer)) return answer.map((f) => f.name).join(', ')
-    return answer.length ? answer.join(', ') : '—'
+    return answer.length ? answer.join(', ') : ''
   }
   if (typeof answer === 'object') {
     const parts = Object.entries(answer).map(([label, value]) => `${label}: ${value}`)
-    return parts.length ? parts.join(', ') : '—'
+    return parts.length ? parts.join(', ') : ''
   }
-  return answer.trim() || '—'
+  return answer.trim() || ''
 }
 
 function locationParts(answers: Submission['answers']): {
@@ -53,7 +53,7 @@ function locationParts(answers: Submission['answers']): {
 
 function locationText(answers: Submission['answers']): string {
   const { city, state, country } = locationParts(answers)
-  return [city, state, country].filter(Boolean).join(', ') || '—'
+  return [city, state, country].filter(Boolean).join(', ')
 }
 
 const STATUS_LABEL: Record<Status, string> = {
@@ -175,7 +175,7 @@ function AdminDashboard({
   }
 
   const deleteClient = async (id: string) => {
-    if (!window.confirm('Remove this client? This cannot be undone.')) return
+    if (!window.confirm("Remove this client? You can't undo this.")) return
     const { error } = await supabase.from('clients').delete().eq('id', id)
     if (error) return
     setClients((prev) => prev.filter((s) => s.id !== id))
@@ -187,9 +187,12 @@ function AdminDashboard({
   }
 
   const totalClients = clients.length
-  const consentCount = clients.filter((s) => s.answers['13'] === 'Yes').length
-  const gateCount = clients.filter((s) =>
-    String(s.answers['11']).startsWith('Yes'),
+  const referralCount = clients.filter((s) => {
+    const value = s.answers['16']
+    return typeof value === 'string' && value.trim().length > 0
+  }).length
+  const followUpCount = clients.filter((s) =>
+    String(s.answers['14']).toLowerCase().includes('not sure'),
   ).length
 
   const q = query.trim().toLowerCase()
@@ -219,7 +222,7 @@ function AdminDashboard({
           <span className="brand-icon small">⬡</span>
           <div>
             <h1>Admin Dashboard</h1>
-            <p>All onboarded clients for your agency</p>
+            <p>Every client who finishes onboarding lands here</p>
           </div>
         </div>
         <div className="dash-header-actions">
@@ -253,12 +256,12 @@ function AdminDashboard({
           <span className="stat-label">Total Clients</span>
         </div>
         <div className="stat-card">
-          <span className="stat-value">{consentCount}</span>
-          <span className="stat-label">Consent to Texts</span>
+          <span className="stat-value">{referralCount}</span>
+          <span className="stat-label">Willing to Refer</span>
         </div>
         <div className="stat-card">
-          <span className="stat-value">{gateCount}</span>
-          <span className="stat-label">Review Gate Enabled</span>
+          <span className="stat-value">{followUpCount}</span>
+          <span className="stat-label">Need a Follow-up</span>
         </div>
       </motion.div>
 
@@ -320,7 +323,7 @@ function AdminDashboard({
         {loading ? (
           <div className="dash-empty">
             <span className="empty-icon">⬡</span>
-            <h2>Loading clients…</h2>
+            <h2>Loading clients</h2>
           </div>
         ) : loadError ? (
           <div className="dash-empty">
@@ -335,7 +338,7 @@ function AdminDashboard({
           <div className="dash-empty">
             <span className="empty-icon">⬡</span>
             <h2>No clients yet</h2>
-            <p>Complete the client onboarding flow to see clients appear here.</p>
+            <p>When someone finishes onboarding, they will show up here.</p>
           </div>
         ) : filtered.length === 0 ? (
           <div className="dash-empty">

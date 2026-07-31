@@ -100,7 +100,7 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
     if (start === 0) {
       msgs.push({
         role: 'ai',
-        text: "Welcome! Let's get your business set up in about 2 minutes. Just answer these questions.",
+        text: "Hey, welcome! We'll get your business set up in about 2 minutes. Just answer the questions below.",
       })
     }
     for (let i = 0; i < start; i++) {
@@ -123,7 +123,7 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(answers))
     } catch {
-      /* storage full — draft not persisted */
+      /* storage full, draft not persisted */
     }
   }, [answers])
 
@@ -169,7 +169,7 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
                 ...prev,
                 {
                   role: 'ai',
-                  text: "Sorry, we couldn't save your onboarding. Please check your connection and try again.",
+                  text: "We couldn't save your answers. Check your connection and try again.",
                 },
               ])
               return
@@ -190,7 +190,7 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
   const submitText = () => {
     const value = textValue.trim()
     if (!isValid(question, value)) {
-      setError('Please answer before continuing.')
+      setError('Please answer before moving on.')
       return
     }
     completeStep(value, value)
@@ -198,7 +198,7 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
 
   const submitGroup = () => {
     if (!isValid(question, groupValue)) {
-      setError('Please fill in every field before continuing.')
+      setError('Please fill in every box before moving on.')
       return
     }
     completeStep(groupValue, formatAnswer(groupValue))
@@ -213,7 +213,7 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
 
   const submitMulti = () => {
     if (multiValue.length === 0) {
-      setError('Select at least one option to continue.')
+      setError('Pick at least one option to continue.')
       return
     }
     completeStep([...multiValue], multiValue.join(', '))
@@ -232,11 +232,11 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
 
     for (const file of Array.from(files)) {
       if (file.size > MAX_FILE_SIZE) {
-        setUploadError(`${file.name} is too large — max 4MB per file.`)
+        setUploadError(`${file.name} is too large. Max 4MB per file.`)
         continue
       }
       if (total + file.size > MAX_TOTAL_SIZE) {
-        setUploadError('Total upload limit reached (15MB).')
+        setUploadError('Total upload limit reached. Max 15MB.')
         break
       }
       const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -262,8 +262,7 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
     if (uploads.length === 0) {
       setError('Add at least one document to continue.')
       return
-    }
-    const display =
+    }    const display =
       uploads.length === 1 ? uploads[0].name : `${uploads.length} documents added`
     completeStep(uploads, display)
   }
@@ -308,7 +307,7 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
           })}
         </nav>
 
-        <div className="chat-side-foot">Powered by LaunchOps AI</div>
+        <div className="chat-side-foot">Powered by LaunchOps</div>
       </aside>
 
       <div className="chat-mobile-head">
@@ -338,7 +337,7 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
             </svg>
             Back
           </button>
-          <span className="chat-head-step">STEP · {question.section}</span>
+          <span className="chat-head-step">{question.section}</span>
         </div>
 
         <div className="chat-scroll" ref={scrollRef}>
@@ -391,7 +390,7 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
                     ref={textRef}
                     className="chat-input"
                     type="text"
-                    placeholder="Type your answer…"
+                    placeholder="Type your answer"
                     value={textValue}
                     onChange={(e) => {
                       setTextValue(e.target.value)
@@ -506,7 +505,7 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
                       <path d="M12 3v12" />
                     </svg>
                     <span>Tap to add documents</span>
-                    <em>Images, PDFs, Word, Excel · max 4MB each</em>
+                    <em>Images, PDFs, Word, Excel. Max 4MB each</em>
                   </button>
 
                   {uploads.length > 0 && (
@@ -585,7 +584,7 @@ function OnboardingQuiz({ onFinish, onExit }: { onFinish: () => void; onExit: ()
             </svg>
             <h2>You&apos;re all set!</h2>
             <p className="chat-done-text">
-              Your onboarding has been saved. Keep this reference handy:
+              All done, your answers are saved. Keep this reference handy:
             </p>
             <span className="reference">{reference}</span>
             <button className="btn btn-client chat-done-btn" onClick={onFinish}>
