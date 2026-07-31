@@ -1597,10 +1597,10 @@ h1 {
 
 .chat-group-label {
   font-size: 12px;
-  font-weight: 600;
-  color: #475569;
+  font-weight: 700;
+  color: #2563eb;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
 }
 
 .chat-continue {
@@ -1633,12 +1633,15 @@ h1 {
 }
 
 .chat-group .chat-input {
-  border-radius: 16px;
+  border-radius: 14px;
   width: 100%;
   min-width: 0;
-  height: 56px;
+  height: 64px;
+  padding: 0 18px;
+  font-size: 16px;
   background: #fff;
   border-color: #cbd5e1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .chat-upload {
